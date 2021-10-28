@@ -11,7 +11,6 @@ loadscreen="\033[?47l"
 
 cleartoeos="\033[0J"
 cleartoeol="\033[0K"
-clearscreen="\033[H\033[J"
 
 movecursor="\033[{row};{column}H"
 
@@ -28,12 +27,19 @@ from subprocess import run as syscall
 from sys import stdin,stdout
 from threading import Thread as thread
 from time import sleep as wait
+from os import get_terminal_size as termsize
 
 def sfprint(*stuff):
-	stdout.write(" ".join(stuff))
+	if len(stuff)>1:
+		stdout.write(" ".join(stuff))
+	else:
+		stdout.write(stuff[0])
 
 def fprint(*stuff):
-	stdout.write(" ".join(stuff))
+	if len(stuff)>1:
+		stdout.write(" ".join(stuff))
+	else:
+		stdout.write(stuff[0])
 	stdout.flush()
 
 class KeyHandler:
@@ -69,24 +75,53 @@ class KeyHandler:
 		self.thread=None
 		self.tasks=[]
 
+size=termsize()
+rows=size.lines
+columns=size.columns
+maxx=columns-1
+maxy=rows-1
+
 class Entity:
-	def __init__(self,sprite,x,y): 
+	def __init__(self,sprite,x,y,*hitbox): 
+		if type(sprite)==str:
+			sprite=sprite.split("\n")
+		if len(hitbox)==2:
+			self.height=hitbox[0]
+			self.width=hitbox[1]
+		else:
+			self.height=len(sprite)
+			self.width=len(sprite[0])
 		self.sprite=sprite
 		self.x=x
 		self.y=y
 
-	def render(self):
+	def update(self):
 		for row in range(len(self.sprite)):
-			sfprint(movecursor.format(
+			fprint(movecursor.format(
 				row=row+self.y+1,
 				column=self.x+1
-			)+self.sprite[row])
+			))
+			fprint(self.sprite[row])
+
+	def bound(self):
+		self.x=self.x%(columns-self.width)
+		self.y=self.y%(rows-self.height)
 
 basket=Entity(
-	
+	yellow+
+	"█   █"+"\n"
+	"◥███◤",
+	columns//2,maxy-3,
+	2,5
 )
 def move(direction):
-	print("Moving in {}...".format(direction))
+	if direction=="w": basket.x-=1
+	elif direction=="a": basket.x-=1
+	elif direction=="s": basket.x+=1
+	elif direction=="d": basket.x+=1
+	basket.bound()
+	print(homecursor+cleartoeos)
+	basket.update()
 
 def stop():
 	global handler
@@ -97,7 +132,7 @@ def stop():
 	quit()
 
 def start():
-	global handler,stop
+	global handler,stop,basket
 	syscall(["stty","cbreak"])
 	syscall(["stty","-echo"])
 	fprint(savecursor+savescreen+hidecursor+homecursor+cleartoeos) #save and prepare terminal
@@ -107,8 +142,9 @@ def start():
 		"s":[move,"s"],
 		"d":[move,"d"],
 		"q":[stop,()],
-		"default":[print,("oW!",)]
+		"default":[fprint,("\a",)]
 	})
+	basket.update()
 	handler.handle()
 
 start()
