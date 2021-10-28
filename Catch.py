@@ -25,9 +25,16 @@ default="\033[39m" #reset text color
 bold="\033[1m"
 
 from subprocess import run as syscall
-from sys import stdin
+from sys import stdin,stdout
 from threading import Thread as thread
 from time import sleep as wait
+
+def sfprint(*stuff):
+	stdout.write(" ".join(stuff))
+
+def fprint(*stuff):
+	stdout.write(" ".join(stuff))
+	stdout.flush()
 
 class KeyHandler:
 	def __init__(self,actions):
@@ -62,12 +69,29 @@ class KeyHandler:
 		self.thread=None
 		self.tasks=[]
 
+class Entity:
+	def __init__(self,sprite,x,y): 
+		self.sprite=sprite
+		self.x=x
+		self.y=y
+
+	def render(self):
+		for row in range(len(self.sprite)):
+			sfprint(movecursor.format(
+				row=row+self.y+1,
+				column=self.x+1
+			)+self.sprite[row])
+
+basket=Entity(
+	
+)
 def move(direction):
 	print("Moving in {}...".format(direction))
 
 def stop():
 	global handler
 	handler.stop()
+	fprint(loadscreen+loadcursor+showcursor) #restore terminal
 	syscall(["stty","-cbreak"])
 	syscall(["stty","echo"])
 	quit()
@@ -76,6 +100,7 @@ def start():
 	global handler,stop
 	syscall(["stty","cbreak"])
 	syscall(["stty","-echo"])
+	fprint(savecursor+savescreen+hidecursor+homecursor+cleartoeos) #save and prepare terminal
 	handler=KeyHandler({
 		"w":[move,"w"],
 		"a":[move,"a"],
