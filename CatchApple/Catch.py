@@ -148,6 +148,8 @@ deathline=Entity(
 )
 renderLock=lock()
 def update():
+	if renderLock.locked():
+		return
 	renderLock.acquire()
 
 	frames.frame+=1
@@ -219,7 +221,7 @@ def tick(): #spawn and move apples
 				apple.x+=1
 			else:
 				apple.x-=1
-			apple.bound()
+		apple.bound()
 
 	if random(1,tps*3)==1:
 		spawn(random(0,maxx))
