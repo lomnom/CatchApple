@@ -63,8 +63,11 @@ def catch(appleN):
 
 tps=6 #game speed
 score,caught,missed=0,0,0
+tickLock=lock()
 def tick(): #spawn and move apples
-	global apples,score,caught,missed
+	global apples,score,caught,missed,tickLock
+	tickLock.acquire()
+
 	for appleN in reversed(range(len(apples))):
 		apple=apples[appleN]
 		nextRY=apple.ry+(3+apple.speed)/tps
@@ -95,8 +98,14 @@ def tick(): #spawn and move apples
 	if random(1,tps*3)==1:
 		spawn(random(0,maxx))
 
+	tickLock.release()
+
 def move(direction):
-	global apples
+	global apples,tickLock
+	if tickLock.locked():
+		return
+	tickLock.acquire()
+
 	if direction=="w": basket.x-=2
 	elif direction=="a": basket.x-=2
 	elif direction=="s": basket.x+=2
@@ -108,6 +117,8 @@ def move(direction):
 		if apple.inside(base):
 			catch(appleN)
 	update()
+
+	tickLock.release()
 	
 running=True
 def stop():
