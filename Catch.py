@@ -7,15 +7,10 @@ scoreboard=Entity("",0,0)
 apples=[]
 basket=Entity(
 	yellow+
-	"█   █"+"\n"
-	"◥███◤",
+	 "█░░░█"+"\n"
+	"\\███/",
 	columns//2,maxy-3,
 	2,5
-)
-inside=Entity(
-	yellow+"░░░",
-	basket.x+1,maxy-3,
-	1,2
 )
 base=Entity(
 	"",
@@ -38,7 +33,6 @@ def update():
 	scoreboard.sprite=f"Score: {score}\nCaught: {caught}\nMissed: {missed}"
 	scoreboard.update()
 	basket.update()
-	inside.update()
 	deathline.update()
 	for apple in apples:
 		apple.update()
@@ -47,16 +41,6 @@ def update():
 	wait(0.01)
 
 	renderLock.release()
-
-def move(direction):
-	if direction=="w": basket.x-=2
-	elif direction=="a": basket.x-=2
-	elif direction=="s": basket.x+=2
-	elif direction=="d": basket.x+=2
-	basket.bound()
-	inside.x=basket.x+1
-	base.x=basket.x
-	update()
 
 def spawn(x):
 	global apples
@@ -70,6 +54,13 @@ def spawn(x):
 	apples[-1].time=0
 	apples[-1].ry=0
 
+def catch(appleN):
+	global apples,score,caught
+	apple=apples[appleN]
+	score+=3+apple.speed
+	apples.pop(appleN)
+	caught+=1
+
 tps=6 #game speed
 score,caught,missed=0,0,0
 def tick(): #spawn and move apples
@@ -77,7 +68,6 @@ def tick(): #spawn and move apples
 	for appleN in reversed(range(len(apples))):
 		apple=apples[appleN]
 		nextRY=apple.ry+(3+apple.speed)/tps
-
 		try:
 			y=apple.y
 			for pos in range(1+(int(nextRY)-apple.y)):
@@ -87,9 +77,7 @@ def tick(): #spawn and move apples
 					missed+=1
 					raise StopIteration
 				elif apple.inside(base):
-					score+=3+apple.speed
-					apples.pop(appleN)
-					caught+=1
+					catch(appleN)
 					raise StopIteration
 		except StopIteration:
 			continue
@@ -106,6 +94,20 @@ def tick(): #spawn and move apples
 
 	if random(1,tps*3)==1:
 		spawn(random(0,maxx))
+
+def move(direction):
+	global apples
+	if direction=="w": basket.x-=2
+	elif direction=="a": basket.x-=2
+	elif direction=="s": basket.x+=2
+	elif direction=="d": basket.x+=2
+	basket.bound()
+	base.x=basket.x
+	for appleN in range(len(apples)):
+		apple=apples[appleN]
+		if apple.inside(base):
+			catch(appleN)
+	update()
 	
 running=True
 def stop():
