@@ -112,8 +112,7 @@ def move(direction):
 	elif direction=="d": basket.x+=2
 	basket.bound()
 	base.x=basket.x
-	for appleN in range(len(apples)):
-		apple=apples[appleN]
+	for appleN,apple in enumerate(apples):
 		if apple.inside(base):
 			catch(appleN)
 	update()
