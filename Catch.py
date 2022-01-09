@@ -1,8 +1,16 @@
 from Game import *
 
+def positionBasketInner():
+	global insideBasket
+	insideBasket=Entity(
+		"",
+		basket.x+1,maxy-3,
+		1,3
+	)
+
 apples=[]
 def generateStatic(rows,columns,maxx,maxy):
-	global deathline,frames,circles,scoreboard,apples,basket,base
+	global deathline,frames,circles,scoreboard,apples,basket,insideBasket
 	circles="◔◑◕●"
 	scoreboard=Entity("",0,0)
 	basket=Entity(
@@ -12,11 +20,7 @@ def generateStatic(rows,columns,maxx,maxy):
 		columns//2,maxy-3,
 		2,5
 	)
-	base=Entity(
-		"",
-		basket.x,maxy-2,
-		1,5
-	)
+	positionBasketInner()
 	deathline=Entity(
 		red+("🔥"*(columns//2))+("^"*(columns%2)),
 		0,maxy,
@@ -60,39 +64,53 @@ def spawn(x):
 	apples[-1].time=0
 	apples[-1].ry=0
 
+def checkAppleCatch(apple):
+	return apple.inside(basket) and not apple.inside(insideBasket)
+
+def checkAppleDeath(apple):
+	return apple.inside(deathline)
+
 def catch(appleN):
 	global apples,score,caught
-	apple=apples[appleN]
+	apple=apples.pop(appleN)
 	score+=3+apple.speed
-	apples.pop(appleN)
 	caught+=1
 
-tps=6 #game speed
+def miss(appleN):
+	global apples,score,missed
+	apple=apples.pop(appleN)
+	score-=(4-apple.speed)
+	missed+=1
+
+def handleMove(appleN): # handle apple movement
+	apple=apples[appleN]
+	if checkAppleDeath(apple):
+		miss(appleN)
+		raise StopIteration
+	elif checkAppleCatch(apple):
+		catch(appleN)
+		raise StopIteration
+
+ticklock=lock()
+tps=15 #game speed
 score,caught,missed=0,0,0
 def tick(): #spawn and move apples
-	global apples,score,caught,missed
-
-	for appleN in reversed(range(len(apples))):
-		apple=apples[appleN]
+	global apples,score
+	ticklock.acquire()
+	for appleN,apple in enumerate(apples):
 		nextRY=apple.ry+(3+apple.speed)/tps
 		try:
 			y=apple.y
 			for pos in range(1+(int(nextRY)-apple.y)):
 				apple.y=y+pos
-				if apple.inside(deathline):
-					apples.pop(appleN)
-					missed+=1
-					raise StopIteration
-				elif apple.inside(base):
-					catch(appleN)
-					raise StopIteration
+				handleMove(appleN)
 		except StopIteration:
 			continue
 
 		apple.ry=nextRY
 		apple.y=int(nextRY)
 
-		if random(1,tps*100)==1:
+		if random(1,tps*20)==1:
 			if random(0,1):
 				apple.x+=1
 			else:
@@ -101,20 +119,23 @@ def tick(): #spawn and move apples
 
 	if random(1,tps*3)==1:
 		spawn(random(0,maxx))
+	ticklock.release()
 
-def move(direction):
+def move(direction,amount=2):
+	ticklock.acquire()
 	global apples
 
-	if direction=="w": basket.x-=2
-	elif direction=="a": basket.x-=2
-	elif direction=="s": basket.x+=2
-	elif direction=="d": basket.x+=2
+	if direction=="w": basket.x-=amount
+	elif direction=="a": basket.x-=amount
+	elif direction=="s": basket.x+=amount
+	elif direction=="d": basket.x+=amount
 	basket.bound()
-	base.x=basket.x
+	positionBasketInner()
 	for appleN,apple in enumerate(apples):
-		if apple.inside(base):
+		if checkAppleCatch(apple):
 			catch(appleN)
 	update()
+	ticklock.release()
 	
 running=True
 def stop():
@@ -133,13 +154,13 @@ def start():
 	gamescr()
 	handler=KeyHandler({
 		"w":Action(move,"w"),
-		"up":Action(move,"w"),
+		"up":Action(move,"w",amount=1),
 		"a":Action(move,"a"),
-		"left":Action(move,"a"),
+		"left":Action(move,"a",amount=1),
 		"s":Action(move,"s"),
-		"down":Action(move,"s"),
+		"down":Action(move,"s",amount=1),
 		"d":Action(move,"d"),
-		"right":Action(move,"d"),
+		"right":Action(move,"d",amount=1),
 		"q":Action(stop),
 		"default":Action(wrongKey)
 	})
