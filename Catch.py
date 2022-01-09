@@ -1,27 +1,33 @@
 from Game import *
 
-circles="◔◑◕●"
-frames=Entity("",maxx,0)
-frames.frame=0
-scoreboard=Entity("",0,0)
 apples=[]
-basket=Entity(
-	yellow+
-	 "█░░░█"+"\n"
-	"\\███/",
-	columns//2,maxy-3,
-	2,5
-)
-base=Entity(
-	"",
-	basket.x,maxy-2,
-	1,5
-)
-deathline=Entity(
-	red+("🔥"*(columns//2))+("^"*(columns%2)),
-	0,maxy,
-	1,columns
-)
+def generateStatic(rows,columns,maxx,maxy):
+	global deathline,frames,circles,scoreboard,apples,basket,base
+	circles="◔◑◕●"
+	scoreboard=Entity("",0,0)
+	basket=Entity(
+		yellow+
+		 "█░░░█"+"\n"
+		"\\███/",
+		columns//2,maxy-3,
+		2,5
+	)
+	base=Entity(
+		"",
+		basket.x,maxy-2,
+		1,5
+	)
+	deathline=Entity(
+		red+("🔥"*(columns//2))+("^"*(columns%2)),
+		0,maxy,
+		1,columns
+	)
+	frames=Entity("",maxx,0)
+	frames.frame=0
+
+generateStatic(rows,columns,maxx,maxy)
+addhandler(generateStatic) #update on resize
+
 renderLock=lock()
 def update():
 	if renderLock.locked():
@@ -63,10 +69,8 @@ def catch(appleN):
 
 tps=6 #game speed
 score,caught,missed=0,0,0
-tickLock=lock()
 def tick(): #spawn and move apples
-	global apples,score,caught,missed,tickLock
-	tickLock.acquire()
+	global apples,score,caught,missed
 
 	for appleN in reversed(range(len(apples))):
 		apple=apples[appleN]
@@ -98,13 +102,8 @@ def tick(): #spawn and move apples
 	if random(1,tps*3)==1:
 		spawn(random(0,maxx))
 
-	tickLock.release()
-
 def move(direction):
-	global apples,tickLock
-	if tickLock.locked():
-		return
-	tickLock.acquire()
+	global apples
 
 	if direction=="w": basket.x-=2
 	elif direction=="a": basket.x-=2
@@ -113,12 +112,13 @@ def move(direction):
 	basket.bound()
 	base.x=basket.x
 	for appleN in range(len(apples)):
-		apple=apples[appleN]
+		try:
+			apple=apples[appleN]
+		except IndexError:
+			break
 		if apple.inside(base):
 			catch(appleN)
 	update()
-
-	tickLock.release()
 	
 running=True
 def stop():
@@ -129,16 +129,23 @@ def stop():
 	wait(1/tps)
 	quit()
 
+def wrongKey(key):
+	fprint('\a')
+
 def start():
 	global handler
 	gamescr()
 	handler=KeyHandler({
-		"w":[move,"w"],
-		"a":[move,"a"],
-		"s":[move,"s"],
-		"d":[move,"d"],
-		"q":[stop,()],
-		"default":[fprint,("\a",)]
+		"w":Action(move,"w"),
+		"up":Action(move,"w"),
+		"a":Action(move,"a"),
+		"left":Action(move,"a"),
+		"s":Action(move,"s"),
+		"down":Action(move,"s"),
+		"d":Action(move,"d"),
+		"right":Action(move,"d"),
+		"q":Action(stop),
+		"default":Action(wrongKey)
 	})
 	handler.handle()
 
